@@ -1,0 +1,55 @@
+# FrozenGFc web build (#V75).
+#
+# Deliberately SEPARATE from upstream's release.yaml so an upstream bump stays a
+# plain merge with no conflict here.  The build steps are upstream's build_web
+# job VERBATIM; the only differences are that (a) --base-href is an input instead
+# of the hardcoded "/web/", and (b) everything after the artifact upload
+# (release asset, fluffychat.im website, GitHub Pages) is dropped, because that
+# is upstream's publishing, not a build.
+name: frozengfc web build
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_href:
+        # The real value is supplied by the caller at dispatch time and is
+        # deliberately NOT written down here: this repository is public and
+        # carries nothing about where the build is served.
+        description: 'Base href to build with (must start and end with /)'
+        required: true
+        default: '/'
+
+permissions:
+  contents: read
+
+jobs:
+  build_web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .tool_versions.yaml
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
+      - run: flutter pub get
+      - name: Prepare web
+        run: ./scripts/prepare-web.sh
+      - run: rm ./assets/vodozemac/.gitignore
+      - name: Build Release Web
+        run: flutter build web --dart-define=FLUTTER_WEB_CANVASKIT_URL=canvaskit/ --release --source-maps --base-href "${{ inputs.base_href }}"
+      - name: Show what was built
+        run: |
+          cat build/web/version.json; echo
+          grep -o '<title>[^<]*</title>' build/web/index.html
+          grep -o 'base href="[^"]*"' build/web/index.html
+          du -sh build/web
+      - name: Create archive
+        run: tar -czf fluffychat-web.tar.gz build/web/
+      - name: Upload Web Build
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-build
+          path: fluffychat-web.tar.gz
+          retention-days: 7
