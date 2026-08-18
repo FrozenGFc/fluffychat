@@ -18,12 +18,27 @@ on:
         description: 'Base href to build with (must start and end with /)'
         required: true
         default: '/'
+      build_web:
+        description: 'Build the web bundle'
+        type: boolean
+        required: false
+        default: true
+      build_android:
+        description: 'Build the Android APK (unsigned; signed on FrozenGFc)'
+        type: boolean
+        required: false
+        default: false
+      version_code:
+        description: 'Android versionCode — must increase on every build'
+        required: false
+        default: '0'
 
 permissions:
   contents: read
 
 jobs:
   build_web:
+    if: ${{ inputs.build_web }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -52,4 +67,38 @@ jobs:
         with:
           name: web-build
           path: fluffychat-web.tar.gz
+          retention-days: 7
+
+  # FrozenGFc #V84: upstream's build_apk recipe, minus the two things that need
+  # secrets we deliberately do not put on GitHub — Firebase messaging and the
+  # release keystore. The APK produced here is UNSIGNED; it is signed on
+  # FrozenGFc with apksigner, so the release key never exists on a runner.
+  build_android:
+    if: ${{ inputs.build_android }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .tool_versions.yaml
+          cache: true
+      - uses: ./.github/actions/free_up_space
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter pub get
+      - name: Build unsigned release APK
+        run: |
+          flutter build apk --release \
+            --target-platform android-arm,android-arm64 \
+            --build-number=${{ inputs.version_code }}
+      - name: Show what was built
+        run: |
+          ls -la build/app/outputs/apk/release/
+          echo "--- manifest identity ---"
+          "$ANDROID_HOME"/build-tools/*/aapt2 dump badging \
+            build/app/outputs/apk/release/*.apk 2>/dev/null | head -5 || true
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: build/app/outputs/apk/release/*.apk
           retention-days: 7
