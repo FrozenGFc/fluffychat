@@ -28,6 +28,11 @@ on:
         type: boolean
         required: false
         default: false
+      build_windows:
+        description: 'Build the Windows desktop app (portable)'
+        type: boolean
+        required: false
+        default: false
       version_code:
         description: 'Android versionCode — must increase on every build'
         required: false
@@ -101,4 +106,57 @@ jobs:
         with:
           name: android-apk
           path: build/app/outputs/apk/release/*.apk
+          retention-days: 7
+
+  # FrozenGFc #V85: the Windows desktop build.
+  # ⚠ UPSTREAM HAS NO WINDOWS JOB IN ANY WORKFLOW — release.yaml builds web, apk,
+  # linux, playstore and docker; integrate.yaml builds debug apk/web/linux/ios.
+  # The windows/ target IS shipped in the repo, but nobody upstream exercises it,
+  # so this job is the first thing that ever has. It therefore follows upstream's
+  # build_linux recipe as closely as the platform allows (same Flutter pin via
+  # .tool_versions.yaml, same Rust toolchain for vodozemac) rather than inventing
+  # its own, and does NOT run scripts/prepare-web.sh, which is web-only.
+  build_windows:
+    if: ${{ inputs.build_windows }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .tool_versions.yaml
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter config --enable-windows-desktop
+      - run: flutter pub get
+      - name: Build Release Windows
+        run: flutter build windows --release
+      - name: Show what was built
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path build\windows -Recurse -Filter messenger.exe |
+                 Select-Object -First 1
+          if (-not $exe) { throw "messenger.exe was not produced" }
+          Write-Host "exe: $($exe.FullName)"
+          $v = $exe.VersionInfo
+          Write-Host "ProductName     : $($v.ProductName)"
+          Write-Host "FileDescription : $($v.FileDescription)"
+          Write-Host "CompanyName     : $($v.CompanyName)"
+          Write-Host "OriginalFilename: $($v.OriginalFilename)"
+          Get-ChildItem $exe.DirectoryName | Select-Object Name,Length | Format-Table
+      - name: Create portable archive
+        shell: pwsh
+        run: |
+          # A top-level folder inside the zip, so unpacking never scatters ~100
+          # loose files into the user's Downloads directory.
+          $exe = Get-ChildItem -Path build\windows -Recurse -Filter messenger.exe |
+                 Select-Object -First 1
+          New-Item -ItemType Directory -Path staging\messenger -Force | Out-Null
+          Copy-Item -Path "$($exe.DirectoryName)\*" -Destination staging\messenger -Recurse
+          Compress-Archive -Path staging\messenger -DestinationPath messenger-windows.zip
+          Write-Host "zip: $((Get-Item messenger-windows.zip).Length) bytes"
+      - name: Upload Windows Build
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-build
+          path: messenger-windows.zip
           retention-days: 7
