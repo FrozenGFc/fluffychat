@@ -138,21 +138,10 @@ class IntroPage extends StatelessWidget {
                               mainAxisSize: .min,
                               crossAxisAlignment: .stretch,
                               children: [
-                                if (!hasPresetHomeserver)
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          theme.colorScheme.secondary,
-                                      foregroundColor:
-                                          theme.colorScheme.onSecondary,
-                                    ),
-                                    onPressed: () => context.go(
-                                      '${GoRouterState.of(context).uri.path}/sign_up',
-                                    ),
-                                    child: Text(
-                                      L10n.of(context).createNewAccount,
-                                    ),
-                                  ),
+                                // FrozenGFc #V80: no "create account" button.
+                                // Registration is disabled on the server, so the
+                                // button could only ever fail. #V76 merely hid it
+                                // behind hasPresetHomeserver; this removes it.
                                 SizedBox(height: 16),
                                 ElevatedButton(
                                   onPressed: login,

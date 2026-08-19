@@ -139,13 +139,51 @@ extension on Brightness {
 }
 
 extension BubbleColorTheme on ThemeData {
-  Color get bubbleColor => brightness == Brightness.light
-      ? colorScheme.primary
-      : colorScheme.primaryContainer;
+  // ⚠ FrozenGFc #V80: THIS EXTENSION IS THE WHOLE CHAT PALETTE. Every colour
+  // the message list uses is named here and nowhere else — do not inline a hex
+  // value into a widget, add a getter here instead. Contrast was measured, not
+  // eyeballed; the ratios are recorded in CLAUDE.md.
 
+  /// Outgoing ("own") message bubble.
+  Color get bubbleColor => brightness == Brightness.light
+      ? const Color(0xFFDCF8C6)
+      : const Color(0xFF005C4B);
+
+  /// Text on an outgoing bubble. 15.2:1 light, 6.8:1 dark.
   Color get onBubbleColor => brightness == Brightness.light
-      ? colorScheme.onPrimary
-      : colorScheme.onPrimaryContainer;
+      ? const Color(0xFF111B21)
+      : const Color(0xFFE9EDEF);
+
+  /// Incoming message bubble: white in light mode, slate in dark.
+  Color get incomingBubbleColor => brightness == Brightness.light
+      ? const Color(0xFFFFFFFF)
+      : const Color(0xFF202C33);
+
+  /// Text on an incoming bubble. 17.5:1 light, 12.1:1 dark.
+  Color get onIncomingBubbleColor => onBubbleColor;
+
+  /// The calm background the bubbles sit on. Deliberately a little deeper than
+  /// WhatsApp's beige: WhatsApp separates bubbles from the background with a
+  /// patterned wallpaper, we have a flat colour, so the separation has to come
+  /// from luminance instead (outgoing 1.19:1, incoming 1.37:1 against it).
+  Color get chatBackgroundColor => brightness == Brightness.light
+      ? const Color(0xFFE3DBD1)
+      : const Color(0xFF0B141A);
+
+  /// Timestamps and the small state text. These sit on the chat BACKGROUND,
+  /// not on a bubble, so they are measured against it: 5.3:1 light, 8.9:1 dark.
+  Color get chatMetaColor => brightness == Brightness.light
+      ? const Color(0xFF4A5860)
+      : const Color(0xFFA8B6BE);
+
+  /// FrozenGFc #V82: the READ tick. Sending and sent ticks use chatMetaColor
+  /// above; only "read" gets its own colour. Measured against the chat
+  /// background: 4.0:1 light, 11.6:1 dark — well over the 3:1 bar for icons.
+  /// ⚠ Colour is the SECOND cue only. One check versus two carries the meaning,
+  /// so the state survives daylight, greyscale and colour blindness.
+  Color get chatTickReadColor => brightness == Brightness.light
+      ? const Color(0xFF12793A)
+      : const Color(0xFF6BE39A);
 
   Color get secondaryBubbleColor => HSLColor.fromColor(
     brightness == Brightness.light

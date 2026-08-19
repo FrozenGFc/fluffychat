@@ -35,6 +35,24 @@ class KeyVerificationPageState extends State<KeyVerificationDialog> {
   void Function()? originalOnUpdate;
   late final List<dynamic> sasEmoji;
 
+  /// FrozenGFc #V76: true when THIS device is the one being verified, i.e. it
+  /// does not hold the cross-signing secrets yet. That device asks the user to
+  /// TYPE the digits; the already-trusted device DISPLAYS them.
+  bool _typeTheCode = false;
+  final TextEditingController _codeController = TextEditingController();
+  String? _codeError;
+
+  Future<void> _detectRole() async {
+    try {
+      final crossSigning = widget.request.client.encryption?.crossSigning;
+      final cached = crossSigning == null ? true : await crossSigning.isCached();
+      if (mounted) setState(() => _typeTheCode = !cached);
+    } catch (_) {
+      // If we cannot tell, fall back to DISPLAYING the digits. That is the
+      // behaviour that always existed and it can never block the flow.
+    }
+  }
+
   @override
   void initState() {
     originalOnUpdate = widget.request.onUpdate;
@@ -50,11 +68,13 @@ class KeyVerificationPageState extends State<KeyVerificationDialog> {
       sasEmoji = json.decode(e);
       setState(() {});
     });
+    _detectRole();
     super.initState();
   }
 
   @override
   void dispose() {
+    _codeController.dispose();
     widget.request.onUpdate =
         originalOnUpdate; // don't want to get updates anymore
     if (![
@@ -238,34 +258,100 @@ class KeyVerificationPageState extends State<KeyVerificationDialog> {
 
         break;
       case KeyVerificationState.askSas:
-        TextSpan compareWidget;
-        // maybe add a button to switch between the two and only determine default
-        // view for if "emoji" is a present sasType or not?
+        // FrozenGFc #V76: decimal SAS, typed on the device being verified.
+        // ⚠ The digits below are DERIVED LOCALLY by this device's own SAS.
+        // They are never sent, never received, and the whole 12-digit code is
+        // compared. Those three properties are what make typing the code
+        // exactly as strong as comparing it by eye — do not weaken any of them.
+        final numbers = widget.request.sasNumbers;
+        final expected = numbers
+            .map((n) => n.toString().padLeft(4, '0'))
+            .join();
+        final pretty = numbers
+            .map((n) => n.toString().padLeft(4, '0'))
+            .join('  ');
 
-        if (widget.request.sasTypes.contains('emoji')) {
-          title = Text(
-            L10n.of(context).compareEmojiMatch,
-            maxLines: 1,
-            style: const TextStyle(fontSize: 16),
+        if (_typeTheCode) {
+          title = const Text(
+            'Введите код с доверенного устройства',
+            style: TextStyle(fontSize: 16),
           );
-          compareWidget = TextSpan(
-            children: widget.request.sasEmojis
-                .map((e) => WidgetSpan(child: _Emoji(e, sasEmoji)))
-                .toList(),
+          body = Column(
+            mainAxisSize: .min,
+            children: <Widget>[
+              const SizedBox(height: 8),
+              const Text(
+                'На уже проверенном устройстве показаны 12 цифр. '
+                'Введите их здесь.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _codeController,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 26, letterSpacing: 3),
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  hintText: '0000 0000 0000',
+                  errorText: _codeError,
+                ),
+              ),
+            ],
           );
-        } else {
-          title = Text(L10n.of(context).compareNumbersMatch);
-          final numbers = widget.request.sasNumbers;
-          final numbstr = '${numbers.first}-${numbers[1]}-${numbers[2]}';
-          compareWidget = TextSpan(
-            text: numbstr,
-            style: const TextStyle(fontSize: 40),
+          buttons.add(
+            AdaptiveDialogAction(
+              onPressed: () => widget.request.rejectSas(),
+              child: Text(
+                'Отмена',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ),
           );
+          buttons.add(
+            AdaptiveDialogAction(
+              onPressed: () {
+                final typed = _codeController.text.replaceAll(
+                  RegExp(r'[^0-9]'),
+                  '',
+                );
+                if (typed.length != expected.length) {
+                  setState(() {
+                    _codeError = 'Нужно ${expected.length} цифр';
+                  });
+                  return;
+                }
+                if (typed == expected) {
+                  widget.request.acceptSas();
+                } else {
+                  setState(() {
+                    _codeError = 'Код не совпадает';
+                  });
+                  widget.request.rejectSas();
+                }
+              },
+              child: const Text('Подтвердить'),
+            ),
+          );
+          break;
         }
+
+        title = Text(L10n.of(context).compareNumbersMatch);
         body = Column(
           mainAxisSize: .min,
           children: <Widget>[
-            Text.rich(compareWidget, textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            const Text(
+              'Продиктуйте эти цифры на новом устройстве',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            SelectableText(
+              pretty,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 30, letterSpacing: 2),
+            ),
           ],
         );
         buttons.add(

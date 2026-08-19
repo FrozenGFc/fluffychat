@@ -1,0 +1,180 @@
+# FrozenGFc web build (#V75).
+#
+# Deliberately SEPARATE from upstream's release.yaml so an upstream bump stays a
+# plain merge with no conflict here.  The build steps are upstream's build_web
+# job VERBATIM; the only differences are that (a) --base-href is an input instead
+# of the hardcoded "/web/", and (b) everything after the artifact upload
+# (release asset, fluffychat.im website, GitHub Pages) is dropped, because that
+# is upstream's publishing, not a build.
+name: frozengfc web build
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_href:
+        # The real value is supplied by the caller at dispatch time and is
+        # deliberately NOT written down here: this repository is public and
+        # carries nothing about where the build is served.
+        description: 'Base href to build with (must start and end with /)'
+        required: true
+        default: '/'
+      build_web:
+        description: 'Build the web bundle'
+        type: boolean
+        required: false
+        default: true
+      build_android:
+        description: 'Build the Android APK (unsigned; signed on FrozenGFc)'
+        type: boolean
+        required: false
+        default: false
+      build_windows:
+        description: 'Build the Windows desktop app (portable)'
+        type: boolean
+        required: false
+        default: false
+      version_code:
+        description: 'Android versionCode — must increase on every build'
+        required: false
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  build_web:
+    if: ${{ inputs.build_web }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .tool_versions.yaml
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
+      - run: flutter pub get
+      - name: Prepare web
+        run: ./scripts/prepare-web.sh
+      - run: rm ./assets/vodozemac/.gitignore
+      - name: Build Release Web
+        run: flutter build web --dart-define=FLUTTER_WEB_CANVASKIT_URL=canvaskit/ --release --source-maps --base-href "${{ inputs.base_href }}"
+      - name: Show what was built
+        run: |
+          cat build/web/version.json; echo
+          grep -o '<title>[^<]*</title>' build/web/index.html
+          grep -o 'base href="[^"]*"' build/web/index.html
+          du -sh build/web
+      - name: Create archive
+        run: tar -czf fluffychat-web.tar.gz build/web/
+      - name: Upload Web Build
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-build
+          path: fluffychat-web.tar.gz
+          retention-days: 7
+
+  # FrozenGFc #V84: upstream's build_apk recipe, minus the two things that need
+  # secrets we deliberately do not put on GitHub — Firebase messaging and the
+  # release keystore. The APK produced here is UNSIGNED; it is signed on
+  # FrozenGFc with apksigner, so the release key never exists on a runner.
+  build_android:
+    if: ${{ inputs.build_android }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .tool_versions.yaml
+          cache: true
+      - uses: ./.github/actions/free_up_space
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter pub get
+      - name: Build unsigned release APK
+        run: |
+          flutter build apk --release \
+            --target-platform android-arm,android-arm64 \
+            --build-number=${{ inputs.version_code }}
+      - name: Show what was built
+        run: |
+          ls -la build/app/outputs/apk/release/
+          echo "--- manifest identity ---"
+          "$ANDROID_HOME"/build-tools/*/aapt2 dump badging \
+            build/app/outputs/apk/release/*.apk 2>/dev/null | head -5 || true
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: build/app/outputs/apk/release/*.apk
+          retention-days: 7
+
+  # FrozenGFc #V85: the Windows desktop build.
+  # ⚠ UPSTREAM HAS NO WINDOWS JOB IN ANY WORKFLOW — release.yaml builds web, apk,
+  # linux, playstore and docker; integrate.yaml builds debug apk/web/linux/ios.
+  # The windows/ target IS shipped in the repo, but nobody upstream exercises it,
+  # so this job is the first thing that ever has. It therefore follows upstream's
+  # build_linux recipe as closely as the platform allows (same Flutter pin via
+  # .tool_versions.yaml, same Rust toolchain for vodozemac) rather than inventing
+  # its own, and does NOT run scripts/prepare-web.sh, which is web-only.
+  build_windows:
+    if: ${{ inputs.build_windows }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .tool_versions.yaml
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter config --enable-windows-desktop
+      - run: flutter pub get
+      - name: Build Release Windows
+        shell: pwsh
+        env:
+          # ⚠ NOT OUR CODE, AND NOT OPTIONAL. The runner's MSVC (VS 18,
+          # toolset 14.51) turns <experimental/coroutine> into a HARD ERROR:
+          #   error C2338: STL1011: ... deprecated by Microsoft and will be
+          #   REMOVED SOON ... define _SILENCE_EXPERIMENTAL_COROUTINE_
+          #   DEPRECATION_WARNINGS to suppress this error for now
+          # The offending file is the local_auth_windows PLUGIN, a transitive
+          # dependency of local_auth. We cannot patch a package we do not ship,
+          # and this macro is the escape hatch Microsoft's own message names —
+          # it silences that one deprecation and changes no generated code.
+          # ⚠ IT IS A BRIDGE, NOT A FIX: Microsoft says the header will be
+          # removed. When it is, this build breaks again and the real fix is a
+          # local_auth_windows release that uses C++20 <coroutine>.
+          # ⚠ Note we do NOT need local_auth on Windows at all — upstream's
+          # supportsAppLock is (isMobile || isMacOS) — but Flutter compiles
+          # every plugin that declares windows support, used or not.
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
+        run: flutter build windows --release
+      - name: Show what was built
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path build\windows -Recurse -Filter messenger.exe |
+                 Select-Object -First 1
+          if (-not $exe) { throw "messenger.exe was not produced" }
+          Write-Host "exe: $($exe.FullName)"
+          $v = $exe.VersionInfo
+          Write-Host "ProductName     : $($v.ProductName)"
+          Write-Host "FileDescription : $($v.FileDescription)"
+          Write-Host "CompanyName     : $($v.CompanyName)"
+          Write-Host "OriginalFilename: $($v.OriginalFilename)"
+          Get-ChildItem $exe.DirectoryName | Select-Object Name,Length | Format-Table
+      - name: Create portable archive
+        shell: pwsh
+        run: |
+          # A top-level folder inside the zip, so unpacking never scatters ~100
+          # loose files into the user's Downloads directory.
+          $exe = Get-ChildItem -Path build\windows -Recurse -Filter messenger.exe |
+                 Select-Object -First 1
+          New-Item -ItemType Directory -Path staging\messenger -Force | Out-Null
+          Copy-Item -Path "$($exe.DirectoryName)\*" -Destination staging\messenger -Recurse
+          Compress-Archive -Path staging\messenger -DestinationPath messenger-windows.zip
+          Write-Host "zip: $((Get-Item messenger-windows.zip).Length) bytes"
+      - name: Upload Windows Build
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-build
+          path: messenger-windows.zip
+          retention-days: 7

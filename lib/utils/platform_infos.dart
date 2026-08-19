@@ -48,6 +48,17 @@ abstract class PlatformInfos {
   static String get appDisplayName =>
       '${AppSettings.applicationName.value} ${isWeb ? 'web' : Platform.operatingSystem}${kReleaseMode ? '' : 'Debug'}';
 
+  /// FrozenGFc #V76: the name used as the MATRIX CLIENT NAME, i.e. on the wire.
+  /// ⚠ ASCII ONLY, AND IT MUST STAY ASCII. It ends up inside every transaction
+  /// id, and the transaction id is part of the canonical JSON that the SAS
+  /// verification commitment hashes. matrix-dart-sdk round-trips that JSON
+  /// through String.fromCharCodes(), which double-encodes non-ASCII bytes, so a
+  /// non-ASCII client name breaks every device verification with
+  /// m.mismatched_commitment. The user-visible name is appDisplayName above and
+  /// is unaffected.
+  static String get matrixClientName =>
+      'Messenger ${isWeb ? 'web' : Platform.operatingSystem}${kReleaseMode ? '' : 'Debug'}';
+
   static Future<String> getVersion() async {
     var version = kIsWeb ? 'Web' : 'Unknown';
     try {

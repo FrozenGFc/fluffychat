@@ -475,8 +475,19 @@ class ChatController extends State<ChatPageWithRoom>
         _showScrollUpMaterialBanner(readMarkerEventId);
       }
 
-      // Mark room as read on first visit if requirements are fulfilled
-      setReadMarker();
+      // FrozenGFc #V82: mark read with an EXPLICIT event id.
+      // A bare setReadMarker() is dropped unless room.hasNewMessages is true,
+      // and that getter bails out whenever the last event type is not one of
+      // client.roomPreviewLastEvents — which is why opening a room with an
+      // unread message published no receipt at all (measured). Naming the
+      // newest visible event says what we mean: it is on screen, so it is
+      // read. Every other guard in setReadMarker still applies, including the
+      // backgrounded-app check, the scrolled-up check and the user's
+      // "send read receipts" privacy setting.
+      final newestVisibleEvent = timeline?.events
+          .filterByVisibleInGui(threadId: activeThreadId)
+          .firstOrNull;
+      setReadMarker(eventId: newestVisibleEvent?.eventId);
 
       if (!mounted) return;
     } catch (e, s) {

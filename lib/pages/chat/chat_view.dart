@@ -86,6 +86,8 @@ class ChatView extends StatelessWidget {
             }
             return Scaffold(
               key: Key('chat_page'),
+              // FrozenGFc #V80: calm chat background from the palette.
+              backgroundColor: theme.chatBackgroundColor,
               extendBodyBehindAppBar: true,
               appBar: AppBar(
                 shape: FluffyThemes.isColumnMode(context)

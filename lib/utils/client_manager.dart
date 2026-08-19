@@ -37,7 +37,7 @@ abstract class ClientManager {
       await store.remove(clientNamespace);
     }
     if (clientNames.isEmpty) {
-      clientNames.add(PlatformInfos.appDisplayName);
+      clientNames.add(PlatformInfos.matrixClientName);
       await store.setStringList(clientNamespace, clientNames.toList());
     }
     final clients = await Future.wait(
@@ -116,6 +116,15 @@ abstract class ClientManager {
     return Client(
       clientName,
       httpClient: CustomHttpClient.createHTTPClient(),
+      // FrozenGFc #V76: DECIMAL IS WHAT OUR UI USES, BUT EMOJI STAYS OFFERED.
+      // ⚠ MEASURED, AND IT DECIDED THIS LINE: with emoji dropped, our start
+      // advertises short_authentication_string ["decimal"] and Element accepts
+      // it — and then Element's UI STILL SHOWS EMOJI. It ignores the negotiated
+      // list. So decimal-only does not make Element display digits; it only
+      // leaves the peer with an emoji screen and us with a digit box, i.e. a
+      // verification nobody can finish. Offering both keeps every existing peer
+      // working exactly as before, while `decimal` in the list is what lets our
+      // own screen use sasNumbers. Both are derived from the SAME SAS bytes.
       verificationMethods: {
         KeyVerificationMethod.numbers,
         if (kIsWeb || PlatformInfos.isMobile || PlatformInfos.isLinux)

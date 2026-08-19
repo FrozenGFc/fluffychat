@@ -148,7 +148,8 @@ class MatrixState extends State<Matrix> {
     }
     final candidate = _loginClientCandidate ??=
         await ClientManager.createClient(
-            '${AppSettings.applicationName.value}-${DateTime.now().millisecondsSinceEpoch}',
+            // FrozenGFc #V76: ASCII, see PlatformInfos.matrixClientName.
+            '${PlatformInfos.matrixClientName}-${DateTime.now().millisecondsSinceEpoch}',
             store,
           )
           ..onLoginStateChanged.stream

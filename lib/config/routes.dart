@@ -83,7 +83,8 @@ abstract class AppRoutes {
         GoRoute(
           path: 'sign_up',
           pageBuilder: (context, state) =>
-              defaultPageBuilder(context, state, SignInPage(signUp: true)),
+              // FrozenGFc #V80: registration is off; sign in instead.
+              defaultPageBuilder(context, state, SignInPage(signUp: false)),
           redirect: loggedInRedirect,
         ),
         GoRoute(
@@ -298,7 +299,9 @@ abstract class AppRoutes {
                           pageBuilder: (context, state) => defaultPageBuilder(
                             context,
                             state,
-                            SignInPage(signUp: true),
+                            // FrozenGFc #V80: registration is off; this
+                            // route now shows the sign-in page instead.
+                            SignInPage(signUp: false),
                           ),
                           redirect: loggedOutRedirect,
                         ),

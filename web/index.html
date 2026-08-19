@@ -24,7 +24,7 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="FluffyChat">
+  <meta name="apple-mobile-web-app-title" content="Мессенджер">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
@@ -32,7 +32,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="icons/Icon-32.png">
   <link rel="icon" type="image/png" sizes="48x48" href="icons/Icon-48.png">
 
-  <title>FluffyChat</title>
+  <title>Мессенджер</title>
   <link rel="manifest" href="manifest.json">
   <script src="Imaging.js"></script>
 
@@ -47,6 +47,11 @@
       {{flutter_build_config}}
 
       _flutter.loader.load({
+        // FrozenGFc: keep the CanvasKit renderer on our own origin.
+        // Without this flutter.js falls back to www.gstatic.com.
+        config: {
+          canvasKitBaseUrl: "canvaskit/",
+        },
         serviceWorker: {
           serviceWorkerVersion: {{flutter_service_worker_version}},
         },

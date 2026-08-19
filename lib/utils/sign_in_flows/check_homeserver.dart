@@ -64,12 +64,12 @@ Future<void> connectToHomeserverFlow(
         await launchUrlString(regLink);
       }
       if (!context.mounted) return;
-      final pathSegments = List.of(
-        GoRouter.of(context).routeInformationProvider.value.uri.pathSegments,
-      );
-      pathSegments.removeLast();
-      pathSegments.add('login');
-      context.go('/${pathSegments.join('/')}', extra: client);
+      // FrozenGFc #V76: go straight to the login route that actually exists.
+      // routes.dart defines `login` ONLY as a child of /home, so /home/login is
+      // the login route. The previous code derived it from the current path,
+      // which produced /login when called from the intro page and threw
+      // GoException: no routes for location: /login.
+      context.go('/home/login', extra: client);
       setState(AsyncSnapshot.withData(ConnectionState.done, true));
       return;
     }
