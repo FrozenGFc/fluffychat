@@ -129,6 +129,24 @@ jobs:
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
       - name: Build Release Windows
+        shell: pwsh
+        env:
+          # ⚠ NOT OUR CODE, AND NOT OPTIONAL. The runner's MSVC (VS 18,
+          # toolset 14.51) turns <experimental/coroutine> into a HARD ERROR:
+          #   error C2338: STL1011: ... deprecated by Microsoft and will be
+          #   REMOVED SOON ... define _SILENCE_EXPERIMENTAL_COROUTINE_
+          #   DEPRECATION_WARNINGS to suppress this error for now
+          # The offending file is the local_auth_windows PLUGIN, a transitive
+          # dependency of local_auth. We cannot patch a package we do not ship,
+          # and this macro is the escape hatch Microsoft's own message names —
+          # it silences that one deprecation and changes no generated code.
+          # ⚠ IT IS A BRIDGE, NOT A FIX: Microsoft says the header will be
+          # removed. When it is, this build breaks again and the real fix is a
+          # local_auth_windows release that uses C++20 <coroutine>.
+          # ⚠ Note we do NOT need local_auth on Windows at all — upstream's
+          # supportsAppLock is (isMobile || isMacOS) — but Flutter compiles
+          # every plugin that declares windows support, used or not.
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
         run: flutter build windows --release
       - name: Show what was built
         shell: pwsh
