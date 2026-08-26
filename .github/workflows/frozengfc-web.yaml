@@ -119,12 +119,30 @@ jobs:
           flutter build apk --release \
             --target-platform android-arm,android-arm64 \
             --build-number=${{ inputs.version_code }}
-      - name: Show what was built
+      # ⚠ #V93 — THIS STEP USED TO CHECK NOTHING. It was
+      #   aapt2 dump badging ... 2>/dev/null | head -5 || true
+      # and the glob for aapt2 never matched, so it printed an empty section and
+      # passed regardless. A check that cannot fail is not a check (the lesson
+      # #V75 learned with the leak guard, in a new place). It now resolves aapt2
+      # explicitly, FAILS if it cannot be found, and — the part that matters —
+      # asserts that Firebase actually made it into the APK, so a build can never
+      # again succeed while quietly having no push.
+      - name: Show what was built and prove Firebase is in it
         run: |
+          set -euo pipefail
           ls -la build/app/outputs/apk/release/
+          APK=$(ls build/app/outputs/apk/release/*.apk | head -1)
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)
+          [ -n "$AAPT" ] || { echo "aapt2 not found under $ANDROID_HOME"; exit 1; }
           echo "--- manifest identity ---"
-          "$ANDROID_HOME"/build-tools/*/aapt2 dump badging \
-            build/app/outputs/apk/release/*.apk 2>/dev/null | head -5 || true
+          "$AAPT" dump badging "$APK" | grep -E "^(package|application-label|sdkVersion|targetSdkVersion)" || true
+          echo "--- firebase must be present ---"
+          "$AAPT" dump xmltree --file AndroidManifest.xml "$APK" > /tmp/mf.txt
+          grep -q "com.google.firebase.MESSAGING_EVENT" /tmp/mf.txt \
+            || { echo "FCM messaging service missing from the manifest"; exit 1; }
+          grep -q "FcmPushService" /tmp/mf.txt \
+            || { echo "FcmPushService missing from the manifest"; exit 1; }
+          echo "firebase messaging service and FcmPushService: present"
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
