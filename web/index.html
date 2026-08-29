@@ -23,36 +23,122 @@
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
+  <!-- FrozenGFc #V98: the legacy Apple flag. display:standalone in the
+       manifest covers iOS 15.4+, this covers everything older. -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="FluffyChat">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="apple-mobile-web-app-title" content="Мессенджер">
+  <!-- FrozenGFc #V98: FULL-BLEED, OPAQUE icons. iOS masks the corners
+       itself; Icon-192.png has WHITE corners and showed a halo. -->
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/Icon-apple-180.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="icons/Icon-apple-167.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/Icon-apple-152.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="icons/Icon-apple-120.png">
+  <link rel="apple-touch-icon" href="icons/Icon-apple-180.png">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#E3DBD1">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B141A">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" sizes="16x16" href="favicon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/Icon-32.png">
   <link rel="icon" type="image/png" sizes="48x48" href="icons/Icon-48.png">
 
-  <title>FluffyChat</title>
+  <title>Мессенджер</title>
   <link rel="manifest" href="manifest.json">
   <script src="Imaging.js"></script>
+
+  <!-- FrozenGFc #V98: the launch appearance. This is what a Home-Screen
+       launch shows for the whole CanvasKit cold start. See the header of
+       v98_ios_pwa.py for why apple-touch-startup-image is NOT used. -->
+  <style>
+    :root { --fc-bg: #E3DBD1; --fc-fg: #4A5860; --fc-brand: #25D366; }
+    @media (prefers-color-scheme: dark) {
+      :root { --fc-bg: #0B141A; --fc-fg: #A8B6BE; }
+    }
+    html, body { margin: 0; padding: 0; background: var(--fc-bg); }
+    #fc-boot {
+      position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+      background: var(--fc-bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2147483000; transition: opacity .35s ease;
+    }
+    #fc-boot.fc-gone { opacity: 0; pointer-events: none; }
+    #fc-boot-inner {
+      display: flex; flex-direction: column; align-items: center; gap: 18px;
+    }
+    #fc-boot-icon {
+      width: 88px; height: 88px; border-radius: 20px; display: block;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, .18);
+    }
+    #fc-boot-name {
+      font: 600 17px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI",
+            Roboto, sans-serif;
+      color: var(--fc-fg); letter-spacing: .2px;
+    }
+    #fc-boot-spin {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2.5px solid rgba(37, 211, 102, .25);
+      border-top-color: var(--fc-brand);
+      animation: fc-spin .8s linear infinite;
+    }
+    @keyframes fc-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      #fc-boot-spin { animation: none; }
+    }
+  </style>
+  <!-- FrozenGFc #V99: the Web Push helpers. Plain JS; see push_client.js. -->
+  <script src="push_client.js" defer></script>
 
   <!-- This script adds the flutter initialization JS code -->
   <script src="flutter.js" defer></script>
 </head>
 
 <body>
+  <div id="fc-boot" aria-hidden="true">
+    <div id="fc-boot-inner">
+      <img id="fc-boot-icon" src="icons/Icon-apple-180.png" alt="">
+      <div id="fc-boot-name">Мессенджер</div>
+      <div id="fc-boot-spin"></div>
+    </div>
+  </div>
   <script>
     window.addEventListener('load', function (ev) {
       {{flutter_js}}
       {{flutter_build_config}}
 
       _flutter.loader.load({
+        // FrozenGFc: keep the CanvasKit renderer on our own origin.
+        // Without this flutter.js falls back to www.gstatic.com.
+        config: {
+          canvasKitBaseUrl: "canvaskit/",
+        },
         serviceWorker: {
           serviceWorkerVersion: {{flutter_service_worker_version}},
         },
       onEntrypointLoaded: function (engineInitializer) {
         engineInitializer.initializeEngine({ useColorEmoji: true }).then(function (appRunner) {
           appRunner.runApp();
+          // FrozenGFc #V98: drop the boot splash as soon as Flutter has a
+          // view element. runApp() resolving does NOT mean a frame was
+          // painted, so poll for the view instead of guessing a delay; the
+          // 15 s cap means the splash can never get stuck on top of a
+          // running app.
+          (function () {
+            var boot = document.getElementById("fc-boot");
+            if (!boot) return;
+            var t0 = Date.now();
+            function hide() {
+              boot.classList.add("fc-gone");
+              setTimeout(function () {
+                if (boot && boot.parentNode) boot.parentNode.removeChild(boot);
+              }, 400);
+            }
+            (function poll() {
+              if (document.querySelector("flutter-view, flt-glass-pane")) return hide();
+              if (Date.now() - t0 > 15000) return hide();
+              requestAnimationFrame(poll);
+            })();
+          })();
         });
       }
       });

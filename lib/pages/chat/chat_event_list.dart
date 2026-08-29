@@ -11,7 +11,6 @@ import 'package:fluffychat/pages/chat/chat.dart';
 import 'package:fluffychat/pages/chat/encrpytion_info.dart';
 import 'package:fluffychat/pages/chat/events/message.dart';
 import 'package:fluffychat/pages/chat/seen_by_row.dart';
-import 'package:fluffychat/pages/chat/typing_indicators.dart';
 import 'package:fluffychat/utils/account_config.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/filtered_timeline_extension.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
@@ -96,7 +95,8 @@ class ChatEventList extends StatelessWidget {
                   mainAxisSize: .min,
                   children: [
                     if (events.isNotEmpty) SeenByRow(event: events.first),
-                    TypingIndicators(controller),
+                    // FrozenGFc #V91: typing moved to the chat header, where
+                    // WhatsApp puts it. Put this line back to restore it here.
                     EncryptionInfo(room: controller.room),
                   ],
                 );

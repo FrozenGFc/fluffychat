@@ -70,7 +70,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "chat.fluffy.fluffychat"
+        // FrozenGFc #V84: our own identity, so this installs alongside
+        // (and never collides with) a store FluffyChat.
+        applicationId = "online.mygpt.messenger"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -82,7 +84,16 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // FrozenGFc #V84: with no key.properties, build UNSIGNED instead of
+            // pointing at a dummy keystore that does not exist. The APK is then
+            // signed on FrozenGFc with apksigner, so the release key never has
+            // to exist on a build runner. With a key.properties present this is
+            // unchanged from upstream.
+            signingConfig =
+                if (keystorePropertiesFile.exists())
+                    signingConfigs.getByName("release")
+                else
+                    null
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")

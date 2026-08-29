@@ -12,6 +12,8 @@ import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/pages/chat/chat.dart';
 import 'package:fluffychat/pages/chat/chat_app_bar_list_tile.dart';
 import 'package:fluffychat/pages/chat/chat_app_bar_title.dart';
+import 'package:fluffychat/pages/chat/chat_wallpaper.dart';   // #V91
+import 'package:fluffychat/pages/chat/group_call_button.dart';   // #V97
 import 'package:fluffychat/pages/chat/chat_event_list.dart';
 import 'package:fluffychat/pages/chat/pinned_events.dart';
 import 'package:fluffychat/pages/chat/reply_display.dart';
@@ -86,6 +88,8 @@ class ChatView extends StatelessWidget {
             }
             return Scaffold(
               key: Key('chat_page'),
+              // FrozenGFc #V80: calm chat background from the palette.
+              backgroundColor: theme.chatBackgroundColor,
               extendBodyBehindAppBar: true,
               appBar: AppBar(
                 shape: FluffyThemes.isColumnMode(context)
@@ -230,6 +234,13 @@ class ChatView extends StatelessWidget {
                         icon: const Icon(Icons.call_outlined),
                         tooltip: L10n.of(context).placeCall,
                       ),
+                    // FrozenGFc #V97: group calls, via our own Element Call.
+                    // ⚠ Gated on the EXACT OPPOSITE of the 1:1 button above,
+                    // so the two can never both appear and neither shadows
+                    // the other. Spaces are not chats and are excluded.
+                    if (!controller.room.isDirectChat &&
+                        !controller.room.isSpace)
+                      GroupCallButton(room: controller.room),
                     ChatSettingsPopupMenu(controller.room, true),
                   ],
                 ],
@@ -315,6 +326,11 @@ class ChatView extends StatelessWidget {
                     top: false,
                     child: Stack(
                       children: <Widget>[
+                        // FrozenGFc #V91: our own faint pattern is the
+                        // DEFAULT background. A wallpaper the owner sets himself
+                        // still wins — this is the else branch, not an overlay.
+                        if (accountConfig.wallpaperUrl == null)
+                          const Positioned.fill(child: ChatWallpaper()),
                         if (accountConfig.wallpaperUrl != null)
                           Opacity(
                             opacity: accountConfig.wallpaperOpacity ?? 0.5,

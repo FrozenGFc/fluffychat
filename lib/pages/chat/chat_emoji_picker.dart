@@ -56,6 +56,12 @@ class ChatEmojiPicker extends StatelessWidget {
                               enabled: false,
                             ),
                             categoryViewConfig: CategoryViewConfig(
+                              // FrozenGFc #V80: open on Smileys, not on the
+                              // empty "Recently used" tab. Recents are NOT
+                              // removed — they still collect with use; this
+                              // only decides which tab is shown first, so the
+                              // picker never opens on a blank panel.
+                              initCategory: Category.SMILEYS,
                               backspaceColor: theme.colorScheme.primary,
                               iconColor: theme.colorScheme.primary.withAlpha(
                                 128,

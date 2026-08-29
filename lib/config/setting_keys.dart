@@ -26,14 +26,25 @@ enum AppSettings<T> {
   showNoGoogle<bool>('chat.fluffy.show_no_google', false),
   unifiedPushRegistered<bool>('chat.fluffy.unifiedpush.registered', false),
   unifiedPushEndpoint<String>('chat.fluffy.unifiedpush.endpoint', ''),
+  // FrozenGFc #V92: OUR Sygnal, not upstream's gateway. Every push for this
+  // app is therefore handled by a machine we control; upstream's server never
+  // sees that our users exist.
   pushNotificationsGatewayUrl<String>(
     'pushNotificationsGatewayUrl',
-    'https://push.fluffychat.im/_matrix/push/v1/notify',
+    'https://my-gpt.online/_matrix/push/v1/notify',
   ),
   pushNotificationsPusherFormat<String>(
     'pushNotificationsPusherFormat',
     'event_id_only',
   ),
+  // FrozenGFc #V99: the VAPID PUBLIC key for Web Push, base64url.
+  // ⚠ EMPTY ON PURPOSE. It is supplied at runtime from config.json, which lives
+  // only on our own server — the fork is public and carries nothing of ours
+  // (#V75/#V85). An empty value hides the browser-notification setting
+  // entirely, so a stock build of this fork simply has no web push.
+  // ⚠ It is a PUBLIC key: the browser must send it to Apple/Google in order to
+  // subscribe. The private half never leaves /etc/sygnal on the server.
+  webPushVapidKey<String>('webPushVapidKey', ''),
   renderHtml<bool>('chat.fluffy.renderHtml', true),
   fontSizeFactor<double>('chat.fluffy.font_size_factor', 1.0),
   hideRedactedEvents<bool>('chat.fluffy.hideRedactedEvents', false),
@@ -52,14 +63,23 @@ enum AppSettings<T> {
   ),
   displayChatDetailsColumn('chat.fluffy.display_chat_details_column', false),
   // AppConfig-mirrored settings
-  applicationName<String>('chat.fluffy.application_name', 'FluffyChat'),
-  defaultHomeserver<String>('chat.fluffy.default_homeserver', 'matrix.org'),
+  applicationName<String>('chat.fluffy.application_name', 'Мессенджер'),
+  // FrozenGFc #V85: our homeserver, compiled in. The DESKTOP build never
+  // reads config.json (AppSettings.init only fetches it when kIsWeb), so
+  // this is the only way a desktop user avoids typing a server address.
+  // On web the server-side config.json still sets the same values, so the
+  // web build is unchanged.
+  defaultHomeserver<String>('chat.fluffy.default_homeserver', 'https://my-gpt.online'),
   // colorSchemeSeed stored as ARGB int
-  colorSchemeSeedInt<int>('chat.fluffy.color_scheme_seed', 0xFF5625BA),
+  // FrozenGFc #V80: green accent instead of the upstream purple. This one
+  // seed drives buttons, links, the FAB and every accent in the app.
+  colorSchemeSeedInt<int>('chat.fluffy.color_scheme_seed', 0xFF25D366),
   emojiSuggestionLocale<String>('emoji_suggestion_locale', ''),
   enableSoftLogout<bool>('chat.fluffy.enable_soft_logout', false),
   enableMatrixNativeOIDC<bool>('chat.fluffy.enable_matrix_native_oidc', false),
-  presetHomeserver<String>('chat.fluffy.preset_homeserver', ''),
+  // FrozenGFc #V85: preset too, so desktop skips the server picker exactly
+  // as the web build does since #V76.
+  presetHomeserver<String>('chat.fluffy.preset_homeserver', 'https://my-gpt.online'),
   welcomeText<String>('chat.fluffy.welcome_text', ''),
   website<String>('chat.fluffy.website_url', 'https://fluffychat.im'),
   logoUrl<String>(

@@ -27,7 +27,29 @@ class BootstrapPage extends StatelessWidget {
           BootstrapViewModel(client: Matrix.of(context).client, reset: reset),
       builder: (context, viewModel, _) {
         final cryptoIdentityState = viewModel.value.cryptoIdentityState;
-        if (cryptoIdentityState?.connected == true && !reset) {
+        // FrozenGFc #V79: do not demand the recovery key from every new
+        // session. A session verified from an existing one gets the
+        // cross-signing secrets and the megolm backup key by itself and can
+        // then read history (measured in #V79), so when ANOTHER session exists
+        // we go straight to the chats and let verification do the work.
+        // ⚠ If this is the ONLY session, there is nothing to verify against and
+        // the recovery key is the only way back — that case still gets the
+        // restore screen below. The key is never removed, only un-nagged.
+        final bootstrapClient = Matrix.of(context).client;
+        final otherSessions =
+            bootstrapClient.userDeviceKeys[bootstrapClient.userID ?? '']
+                ?.deviceKeys
+                .keys
+                .where((id) => id != bootstrapClient.deviceID)
+                .length ??
+            0;
+        final canBeVerifiedByAnotherSession =
+            cryptoIdentityState?.initialized == true &&
+            cryptoIdentityState?.connected != true &&
+            otherSessions > 0;
+        if (!reset &&
+            (cryptoIdentityState?.connected == true ||
+                canBeVerifiedByAnotherSession)) {
           WidgetsBinding.instance.addPostFrameCallback(
             (_) => viewModel.goToRoomsPageAfterSuccess(context),
           );

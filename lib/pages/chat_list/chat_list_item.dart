@@ -5,6 +5,7 @@
 
 import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/pages/chat/events/message_ticks.dart';   // #V91
 import 'package:fluffychat/pages/chat_list/unread_bubble.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/utils/room_status_extension.dart';
@@ -243,14 +244,14 @@ class ChatListItem extends StatelessWidget {
                 crossAxisAlignment: .start,
                 mainAxisAlignment: .center,
                 children: <Widget>[
-                  if (typingText.isEmpty &&
-                      ownMessage &&
-                      room.lastEvent?.status.isSending == true) ...[
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator.adaptive(strokeWidth: 2),
-                    ),
+                  // FrozenGFc #V91: the #V82 tick, so the list says whether
+                  // your own last message sent and whether it was read — the
+                  // WhatsApp affordance. Replaces a spinner that only showed
+                  // while sending and then vanished. No timeline is loaded
+                  // here, which MessageTicks handles: it falls back to
+                  // comparing receipt timestamps.
+                  if (typingText.isEmpty && ownMessage && lastEvent != null) ...[
+                    MessageTicks(lastEvent, null),
                     const SizedBox(width: 4),
                   ],
                   AnimatedSize(

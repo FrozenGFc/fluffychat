@@ -8,6 +8,7 @@ import 'dart:ui' as ui;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/config/themes.dart';
+import 'package:fluffychat/pages/chat/events/message_ticks.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
 import 'package:fluffychat/utils/date_time_extension.dart';
@@ -105,7 +106,8 @@ class Message extends StatelessWidget {
     final ownMessage = event.senderId == client.userID;
     final alignment = ownMessage ? Alignment.topRight : Alignment.topLeft;
 
-    var color = theme.colorScheme.surfaceContainerHigh;
+    // FrozenGFc #V80: incoming bubble colour comes from the palette.
+    var color = theme.incomingBubbleColor;
     final displayTime =
         event.type == EventTypes.RoomCreate ||
         previousEvent == null ||
@@ -128,7 +130,7 @@ class Message extends StatelessWidget {
 
     final textColor = ownMessage
         ? theme.onBubbleColor
-        : theme.colorScheme.onSurface;
+        : theme.onIncomingBubbleColor;   // FrozenGFc #V80
 
     final linkColor = ownMessage
         ? theme.brightness == Brightness.light
@@ -215,7 +217,9 @@ class Message extends StatelessWidget {
               color: theme.colorScheme.surface,
             ),
           ];
-    final eventStateTextColor = theme.colorScheme.onSurface;
+    // FrozenGFc #V80: timestamps sit on the chat background, so they take
+    // their colour from the palette rather than from onSurface.
+    final eventStateTextColor = theme.chatMetaColor;
 
     return Center(
       child: Swipeable(
@@ -528,6 +532,11 @@ class Message extends StatelessWidget {
                               mainAxisAlignment: ownMessage ? .end : .start,
                               children: [
                                 const SizedBox(width: 8),
+                                // FrozenGFc #V82: ticks, our own messages only.
+                                // There is deliberately no "delivered" state —
+                                // Matrix has no delivery receipt.
+                                if (ownMessage && !event.redacted)
+                                  MessageTicks(event, timeline),
                                 if (event.status.isSent &&
                                     (displayTime ||
                                         !previousEventSameSender ||

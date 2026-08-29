@@ -40,13 +40,39 @@ abstract class PlatformInfos {
   static bool get supportsCustomImageResizer =>
       PlatformInfos.isWeb || PlatformInfos.isMobile;
 
-  /// Web could also record in theory but currently creates broken opus
-  static bool get platformCanRecord => (isMobile || isMacOS);
+  /// FrozenGFc #V91: Windows added. Upstream's "web creates broken opus" note
+  /// is about the WEB implementation and says nothing about Windows, which is a
+  /// separate plugin on Media Foundation. Read out of record_windows 2.2.0's
+  /// own C++: Windows has no Opus ENCODER, so isEncoderSupported(opus) returns
+  /// false and the recorder falls back to AAC-LC in an .m4a container — it
+  /// never takes the opus path upstream distrusts.
+  ///
+  /// FrozenGFc #V99: WEB added, on the same reasoning and the same measurement.
+  /// recording_view_model.dart asks isEncoderSupported(opus) first; record_web
+  /// answers it with MediaRecorder.isTypeSupported() over the three webm/opus
+  /// types, none of which Safari supports, so Safari also lands on AAC-LC in
+  /// .m4a. The file name follows the codec, so it stays self-consistent.
+  /// ⚠ Desktop Chrome and Firefox DO support webm/opus and will take the opus
+  /// branch, which is the path upstream complained about — see the mime note in
+  /// chat.dart's onVoiceMessageSend.
+  static bool get platformCanRecord =>
+      (isMobile || isMacOS || isWindows || isWeb);
 
   static bool get supportsAppLock => (isMobile || isMacOS);
 
   static String get appDisplayName =>
       '${AppSettings.applicationName.value} ${isWeb ? 'web' : Platform.operatingSystem}${kReleaseMode ? '' : 'Debug'}';
+
+  /// FrozenGFc #V76: the name used as the MATRIX CLIENT NAME, i.e. on the wire.
+  /// ⚠ ASCII ONLY, AND IT MUST STAY ASCII. It ends up inside every transaction
+  /// id, and the transaction id is part of the canonical JSON that the SAS
+  /// verification commitment hashes. matrix-dart-sdk round-trips that JSON
+  /// through String.fromCharCodes(), which double-encodes non-ASCII bytes, so a
+  /// non-ASCII client name breaks every device verification with
+  /// m.mismatched_commitment. The user-visible name is appDisplayName above and
+  /// is unaffected.
+  static String get matrixClientName =>
+      'Messenger ${isWeb ? 'web' : Platform.operatingSystem}${kReleaseMode ? '' : 'Debug'}';
 
   static Future<String> getVersion() async {
     var version = kIsWeb ? 'Web' : 'Unknown';

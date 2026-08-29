@@ -238,34 +238,84 @@ class KeyVerificationPageState extends State<KeyVerificationDialog> {
 
         break;
       case KeyVerificationState.askSas:
-        TextSpan compareWidget;
-        // maybe add a button to switch between the two and only determine default
-        // view for if "emoji" is a present sasType or not?
+        // FrozenGFc #V102: show BOTH forms of the SAS at once — the emoji AND
+        // the decimal code — with ONE pair of buttons.
+        //
+        // ⚠ WHY BOTH, AND WHY IT IS NOT WEAKER (from matrix 8.1.0's source):
+        // sasNumbers is _bytesToInt(makeSas(5), 13) and sasEmojis is
+        // _bytesToInt(makeSas(6), 6); makeSas(n) is generateBytes(sasInfo, n),
+        // the first n bytes of ONE HKDF stream over a fixed info string. So the
+        // two are encodings of the SAME secret — decimal reads the first 39
+        // bits, emoji the first 42. The emoji bits are a strict superset of the
+        // decimal bits, so confirming either is a full comparison of the
+        // negotiated SAS and neither is truncated.
+        //
+        // ⚠ WHY IT EXISTS: Element renders emoji even when only `decimal` was
+        // negotiated (measured in #V76). A screen that offered digits alone
+        // could not be satisfied against Element at all — the user's only
+        // working button was Cancel. Both sides of this screen are labelled so
+        // it is obvious which half matches what the other device is showing.
+        final sasNumbers = widget.request.sasNumbers;
+        final sasDigits = sasNumbers
+            .map((n) => n.toString().padLeft(4, '0'))
+            .join('  ');
+        final showEmoji = widget.request.sasEmojis.isNotEmpty;
 
-        if (widget.request.sasTypes.contains('emoji')) {
-          title = Text(
-            L10n.of(context).compareEmojiMatch,
-            maxLines: 1,
-            style: const TextStyle(fontSize: 16),
-          );
-          compareWidget = TextSpan(
-            children: widget.request.sasEmojis
-                .map((e) => WidgetSpan(child: _Emoji(e, sasEmoji)))
-                .toList(),
-          );
-        } else {
-          title = Text(L10n.of(context).compareNumbersMatch);
-          final numbers = widget.request.sasNumbers;
-          final numbstr = '${numbers.first}-${numbers[1]}-${numbers[2]}';
-          compareWidget = TextSpan(
-            text: numbstr,
-            style: const TextStyle(fontSize: 40),
-          );
-        }
+        title = Text(
+          L10n.of(context).compareEmojiMatch,
+          maxLines: 1,
+          style: const TextStyle(fontSize: 16),
+        );
         body = Column(
           mainAxisSize: .min,
           children: <Widget>[
-            Text.rich(compareWidget, textAlign: TextAlign.center),
+            const SizedBox(height: 4),
+            const Text(
+              'Достаточно, чтобы совпало ОДНО из двух — смотрите на то, '
+              'что показывает второе устройство.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13),
+            ),
+            if (showEmoji) ...[
+              const SizedBox(height: 14),
+              Text(
+                'ЭМОДЖИ — если на втором устройстве Element',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // upstream's exact rendering, so the layout is unchanged
+              Text.rich(
+                TextSpan(
+                  children: widget.request.sasEmojis
+                      .map((e) => WidgetSpan(child: _Emoji(e, sasEmoji)))
+                      .toList(),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const Divider(height: 8),
+            ],
+            const SizedBox(height: 10),
+            Text(
+              'ЦИФРЫ — если на втором устройстве тоже «Мессенджер»',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SelectableText(
+              sasDigits,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 28, letterSpacing: 2),
+            ),
+            const SizedBox(height: 6),
           ],
         );
         buttons.add(

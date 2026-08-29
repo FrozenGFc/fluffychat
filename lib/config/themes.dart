@@ -59,6 +59,13 @@ abstract class FluffyThemes {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
+      // FrozenGFc #V103: draw emoji from OUR bundled Noto Color Emoji instead
+      // of whatever the device happens to ship, so the same message looks the
+      // same on Android, Windows and the web.
+      // ⚠ FALLBACK, not fontFamily: this font contains emoji and no letters,
+      // so making it the primary family would erase all ordinary text. A
+      // fallback is consulted only for glyphs the main font cannot draw.
+      fontFamilyFallback: const ['Noto Color Emoji'],
       dividerColor: dividerColor,
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: SegmentedButton.styleFrom(
@@ -139,13 +146,59 @@ extension on Brightness {
 }
 
 extension BubbleColorTheme on ThemeData {
-  Color get bubbleColor => brightness == Brightness.light
-      ? colorScheme.primary
-      : colorScheme.primaryContainer;
+  // ⚠ FrozenGFc #V80: THIS EXTENSION IS THE WHOLE CHAT PALETTE. Every colour
+  // the message list uses is named here and nowhere else — do not inline a hex
+  // value into a widget, add a getter here instead. Contrast was measured, not
+  // eyeballed; the ratios are recorded in CLAUDE.md.
 
+  /// Outgoing ("own") message bubble.
+  Color get bubbleColor => brightness == Brightness.light
+      ? const Color(0xFFDCF8C6)
+      : const Color(0xFF005C4B);
+
+  /// Text on an outgoing bubble. 15.2:1 light, 6.8:1 dark.
   Color get onBubbleColor => brightness == Brightness.light
-      ? colorScheme.onPrimary
-      : colorScheme.onPrimaryContainer;
+      ? const Color(0xFF111B21)
+      : const Color(0xFFE9EDEF);
+
+  /// Incoming message bubble: white in light mode, slate in dark.
+  Color get incomingBubbleColor => brightness == Brightness.light
+      ? const Color(0xFFFFFFFF)
+      : const Color(0xFF202C33);
+
+  /// Text on an incoming bubble. 17.5:1 light, 12.1:1 dark.
+  Color get onIncomingBubbleColor => onBubbleColor;
+
+  /// The calm background the bubbles sit on. Deliberately a little deeper than
+  /// WhatsApp's beige: WhatsApp separates bubbles from the background with a
+  /// patterned wallpaper, we have a flat colour, so the separation has to come
+  /// from luminance instead (outgoing 1.19:1, incoming 1.37:1 against it).
+  Color get chatBackgroundColor => brightness == Brightness.light
+      ? const Color(0xFFE3DBD1)
+      : const Color(0xFF0B141A);
+
+  /// The wallpaper motif drawn on top of [chatBackgroundColor] (#V91). Kept
+  /// deliberately close to the background: it is texture, not decoration. The
+  /// alpha is baked in here so no widget ever picks its own.
+  /// Measured at the BUSIEST point: meta text stays 4.78:1 light / 8.23:1 dark.
+  Color get chatWallpaperInk => brightness == Brightness.light
+      ? const Color(0xFF8C7F6E).withAlpha(33)
+      : const Color(0xFF8FA6B2).withAlpha(15);
+
+  /// Timestamps and the small state text. These sit on the chat BACKGROUND,
+  /// not on a bubble, so they are measured against it: 5.3:1 light, 8.9:1 dark.
+  Color get chatMetaColor => brightness == Brightness.light
+      ? const Color(0xFF4A5860)
+      : const Color(0xFFA8B6BE);
+
+  /// FrozenGFc #V82: the READ tick. Sending and sent ticks use chatMetaColor
+  /// above; only "read" gets its own colour. Measured against the chat
+  /// background: 4.0:1 light, 11.6:1 dark — well over the 3:1 bar for icons.
+  /// ⚠ Colour is the SECOND cue only. One check versus two carries the meaning,
+  /// so the state survives daylight, greyscale and colour blindness.
+  Color get chatTickReadColor => brightness == Brightness.light
+      ? const Color(0xFF12793A)
+      : const Color(0xFF6BE39A);
 
   Color get secondaryBubbleColor => HSLColor.fromColor(
     brightness == Brightness.light

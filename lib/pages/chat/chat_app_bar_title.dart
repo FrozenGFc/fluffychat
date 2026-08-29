@@ -10,6 +10,7 @@ import 'package:fluffychat/utils/date_time_extension.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/utils/sync_status_localization.dart';
 import 'package:fluffychat/widgets/avatar.dart';
+import 'package:fluffychat/widgets/chat_header_typing.dart';   // #V91
 import 'package:fluffychat/widgets/presence_builder.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -76,8 +77,13 @@ class ChatAppBarTitle extends StatelessWidget {
                     final style = TextStyle(fontSize: 11);
                     return AnimatedSize(
                       duration: FluffyThemes.animationDuration,
+                      // FrozenGFc #V91: typing replaces the presence line
+                      // while it lasts, then the line comes back.
                       child: hide
-                          ? room.isDirectChat
+                          ? ChatHeaderTyping(
+                              room: room,
+                              style: style,
+                              fallback: room.isDirectChat
                                 ? PresenceBuilder(
                                     userId: room.directChatMatrixID,
                                     builder: (context, presence) {
@@ -145,7 +151,8 @@ class ChatAppBarTitle extends StatelessWidget {
                                         ),
                                       ],
                                     ],
-                                  )
+                                  ),
+                            )
                           : Row(
                               children: [
                                 SizedBox.square(

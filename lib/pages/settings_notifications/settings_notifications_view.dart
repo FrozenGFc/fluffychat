@@ -16,6 +16,7 @@ import 'package:matrix/matrix.dart';
 
 import '../../utils/localized_exception_extension.dart';
 import '../../widgets/matrix.dart';
+import 'web_push_tile.dart';
 import 'settings_notifications.dart';
 
 class SettingsNotificationsView extends StatelessWidget {
@@ -65,6 +66,8 @@ class SettingsNotificationsView extends StatelessWidget {
                       title: Text('Last received push notification'),
                       subtitle: Text(lastReceivedPush.toIso8601String()),
                     ),
+                  // FrozenGFc #V99: browser notifications (Web Push).
+                  if (kIsWeb) const WebPushTile(),
                   if (kIsWeb)
                     SettingsSwitchListTile.adaptive(
                       title: L10n.of(context).playSoundOnNotification,

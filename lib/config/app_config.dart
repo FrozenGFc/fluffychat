@@ -18,7 +18,9 @@ abstract class AppConfig {
   static const String deepLinkPrefix = 'im.fluffychat://chat/';
   static const String schemePrefix = 'matrix:';
   static const String pushNotificationsChannelId = 'fluffychat_push';
-  static const String pushNotificationsAppId = 'chat.fluffy.fluffychat';
+  // FrozenGFc #V92: our identity, and it must match a key in sygnal.yaml.
+  // Android turns this into '<id>.data_message' at registration time.
+  static const String pushNotificationsAppId = 'online.mygpt.messenger';
   static const double borderRadius = 18.0;
   static const double spaceBorderRadius = 11.0;
   static const double columnWidth = 360.0;

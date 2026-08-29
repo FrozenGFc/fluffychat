@@ -104,6 +104,16 @@ flutter:
     - assets/logo/mini/
     - assets/sounds/
     - assets/vodozemac/
+  # FrozenGFc #V103: ONE emoji font for every platform, so the same message
+  # looks the same on the phone, on Windows and in the browser. Noto Color
+  # Emoji 2.051, COLRv1 build, SIL OFL 1.1 (licence in assets/fonts/OFL.txt).
+  # ⚠ COLRv1 and NOT the CBDT bitmap build: Impeller, the default Android
+  # renderer, ignores CBDT/CBLC (flutter/flutter#183828), so a bitmap font
+  # would ship and never render.
+  fonts:
+    - family: Noto Color Emoji
+      fonts:
+        - asset: assets/fonts/NotoColorEmoji-COLRv1.ttf
 
 flutter_launcher_icons:
   image_path: assets/logo/img/logo.png

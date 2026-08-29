@@ -475,8 +475,19 @@ class ChatController extends State<ChatPageWithRoom>
         _showScrollUpMaterialBanner(readMarkerEventId);
       }
 
-      // Mark room as read on first visit if requirements are fulfilled
-      setReadMarker();
+      // FrozenGFc #V82: mark read with an EXPLICIT event id.
+      // A bare setReadMarker() is dropped unless room.hasNewMessages is true,
+      // and that getter bails out whenever the last event type is not one of
+      // client.roomPreviewLastEvents — which is why opening a room with an
+      // unread message published no receipt at all (measured). Naming the
+      // newest visible event says what we mean: it is on screen, so it is
+      // read. Every other guard in setReadMarker still applies, including the
+      // backgrounded-app check, the scrolled-up check and the user's
+      // "send read receipts" privacy setting.
+      final newestVisibleEvent = timeline?.events
+          .filterByVisibleInGui(threadId: activeThreadId)
+          .firstOrNull;
+      setReadMarker(eventId: newestVisibleEvent?.eventId);
 
       if (!mounted) return;
     } catch (e, s) {
@@ -851,7 +862,19 @@ class ChatController extends State<ChatPageWithRoom>
     final bytes = bytesResult.result;
     if (bytes == null) return;
 
-    final mimeType = lookupMimeType(fileName, headerBytes: bytes);
+    var mimeType = lookupMimeType(fileName, headerBytes: bytes);
+    // FrozenGFc #V99: on web, trust the recorder over the magic sniffer.
+    // mime 2.0.0 maps an MP4 'ftyp' box to video/mp4 and WebM to audio/weba,
+    // and magic outranks the extension — so a Safari voice note (real MP4, AAC
+    // audio, correctly named .m4a) would be sent labelled video/mp4. The file
+    // name here was derived from the codec the recorder actually negotiated,
+    // so when sniffing says "not audio" and the name says "audio", the name
+    // wins. Scoped to web: the shipped mobile/desktop builds keep their
+    // existing behaviour exactly.
+    if (kIsWeb && mimeType != null && !mimeType.startsWith('audio/')) {
+      final byName = lookupMimeType(fileName);
+      if (byName != null && byName.startsWith('audio/')) mimeType = byName;
+    }
     final extension = mimeType == null ? null : extensionFromMime(mimeType);
     if (extension != null) {
       fileName =

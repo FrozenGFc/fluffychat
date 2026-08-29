@@ -13,6 +13,7 @@ import 'package:fluffychat/utils/init_with_restore.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
 import 'package:fluffychat/utils/notification_background_handler.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:fluffychat/utils/web_push/web_push.dart';
 import 'package:fluffychat/utils/uia_request_manager.dart';
 import 'package:fluffychat/utils/voip_plugin.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
@@ -148,7 +149,8 @@ class MatrixState extends State<Matrix> {
     }
     final candidate = _loginClientCandidate ??=
         await ClientManager.createClient(
-            '${AppSettings.applicationName.value}-${DateTime.now().millisecondsSinceEpoch}',
+            // FrozenGFc #V76: ASCII, see PlatformInfos.matrixClientName.
+            '${PlatformInfos.matrixClientName}-${DateTime.now().millisecondsSinceEpoch}',
             store,
           )
           ..onLoginStateChanged.stream
@@ -318,6 +320,20 @@ class MatrixState extends State<Matrix> {
   void initMatrix() {
     for (final c in widget.clients) {
       _registerSubs(c.clientName);
+    }
+
+    // FrozenGFc #V99: the browser path. It NEVER prompts — it only re-registers
+    // a pusher for a subscription the browser already holds, because a pusher
+    // can be lost (logout, another session tidying up) while the browser
+    // subscription survives, and then notifications stop with nothing on screen
+    // to explain it. The opt-in prompt lives in Settings ▸ Notifications, where
+    // it can be driven by a real tap.
+    if (PlatformInfos.isWeb) {
+      for (final c in widget.clients) {
+        WebPush.refresh(c).catchError(
+          (e, s) => Logs().w('[WebPush] refresh failed', e, s),
+        );
+      }
     }
 
     if (PlatformInfos.isMobile) {

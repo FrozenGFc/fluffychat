@@ -1,10 +1,10 @@
 {
-    "name": "FluffyChat",
-    "short_name": "FluffyChat",
+    "name": "Мессенджер",
+    "short_name": "Мессенджер",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#FFFFFF",
-    "theme_color": "#41a2bc",
+    "background_color": "#E3DBD1",
+    "theme_color": "#25D366",
     "description": "The cutest messenger in the Matrix network",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
@@ -31,5 +31,6 @@
             "type": "image/png",
             "purpose": "maskable"
         }
-    ]
+    ],
+    "scope": "."
 }
